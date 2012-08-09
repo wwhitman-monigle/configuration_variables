@@ -9,7 +9,8 @@ function configuration_variables_configuration_api() {
       'name' => t('System Variables'),
       'feature_source' => FALSE,
       'default_hook' => 'configuration_variables_variable_set',
-      'configuration_source' => 'configuration.variables',
+      'default_file' => CONFIGURATION_DEFAULTS_CUSTOM,
+      'default_filename' => 'configuration.variables.inc',
     ),
   );
 }

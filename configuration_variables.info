@@ -1,7 +1,8 @@
 name = Configuration Variables Support  
 description = Provide hooks and methods for integrating system variables with Configuration and provides hooks, etc...
-core = "7.x"
+core = 7.x
 package = Configuration
+dependencies[] = configuration
+files[] = configuration_variables.module
 
-php = 5.3
 version = "7.x-1.x-dev"
