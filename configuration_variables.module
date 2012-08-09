@@ -8,9 +8,9 @@ function configuration_variables_configuration_api() {
     'configuration_variables' => array(
       'name' => t('System Variables'),
       'feature_source' => FALSE,
-      'default_hook' => 'configuration_variables_variable_set',
+      'default_hook' => 'configuration_variables_configuration_export_options',
       'default_file' => CONFIGURATION_DEFAULTS_CUSTOM,
-      'default_filename' => 'configuration.variables.inc',
+      'default_filename' => 'configuration.variables',
     ),
   );
 }
@@ -64,7 +64,7 @@ function configuration_variables_configuration_export_render($module_name, $data
       $value = variable_get($name,'');
       //if ($value) {
         $code[] = "  // Exported variable: {$name}";
-        //$code[] = "  variable_set({$name},{$value});";
+        
         $code[] = "  \$variables['{$name}'] = " . configuration_var_export($value, '  ', FALSE) . ";";
         //$code[] = "  \$variables['{$name}'] = '{$data}';";
         $code[] = "";
