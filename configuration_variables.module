@@ -90,72 +90,73 @@ function configuration_variables_configuration_revert($identifiers, $module_name
   }
 }
 
+//There are no hooks available in Drupal 7 but in drupal  8 hook_variable_set will be used to trigger this function
 function configuration_check_configuration_variables($identifier) {
-//  // Get static variable that we can access across this request.
-//  $from_activestore = &drupal_static('configuration_from_activestore');
-//  
-//  if (file_exists("config://configuration.inc")) {
-//    // Load the current configuration file on disk
-//    include_once "config://configuration.inc";
-//    if (function_exists('configuration_configuration_variables_default_values')) {
-//      // Clear all caches and flush.
-//      // NOt sure if I should empty the vars here
-//
-//      // Export just the field we're tracking.
-//      module_load_include('inc', 'configuration', 'configuration.export');
-//
-//      // Export the field we just saved and evaluate the export to $fields
-//      eval(array_pop(configuration_variables_configuration_export_render('configuration_variables', array($identifier))));
-//
-//      $variables_code = configuration_configuration_variables_default_values();
-//      
-//      // If the activestore doesn't exist it is most likely because this configuration
-//      // only exists in code.
-//      if (empty($variables)) {
-//        configuration_set_status($component, $identifier, CONFIGURATION_TRACKED_DATASTORE_ONLY);
-//      }
-//
-//      // If this was the previous configuration in activestore don't mark this as changed.
-//      $config = configuration_get_configuration();
-//      /**
-//       * @todo This code is reused in all component files.
-//       */
-//      $return = '';
-//      $component = 'configuration_variables';
-//      $status = $config[$component][$identifier]['status'];
-//      $md5_datastore = (is_array($variables_code) && array_key_exists($identifier, $variables_code)) ? md5(serialize($variables_code[$identifier])) : '';
-//      $md5_activestore = md5(serialize($styles[$identifier]));
-//      
-//      // Configs in code are not the same as what was just saved in activestore.
-//      if ($from_activestore == TRUE && $md5_datastore != $md5_activestore) {
-//        $status = $status | CONFIGURATION_ACTIVESTORE_OVERRIDDEN;
-//        configuration_set_status($component, $identifier, $status);
-//      }
-//      // Menu in the activestore is the same as what is in code.
-//      if ($md5_activestore == $md5_datastore) {
-//        $status = CONFIGURATION_IN_SYNC;
-//        configuration_set_status($component, $identifier, $status);
-//        configuration_set_hash($component, $identifier, $md5_activestore);
-//      }
-//      if ($md5_activestore != $md5_datastore) {
-//        $status = $status | CONFIGURATION_DATASTORE_OVERRIDDEN;
-//        configuration_set_status($component, $identifier, $status);
-//      }
-//      // When checking for new configurations, check to see if configurations are
-//      // the same in datastore as last activestore. Remove the datastore overridden.
-//      if ($md5_datastore == $config[$component][$identifier]['hash']) {
-//        $status = $status & ~CONFIGURATION_DATASTORE_OVERRIDDEN;
-//        configuration_set_status($component, $identifier, $status);
-//      }
-//
-//      // Store the config array in cache for easy access
-//      if ($status != CONFIGURATION_IN_SYNC) {
-//        $configuration[$component][$identifier]['activestore'] = $styles[$identifier];
-//        $configuration[$component][$identifier]['datastore'] = (is_array($variables_code) && array_key_exists($identifier, $variables_code)) ? $variables_code[$identifier] : '';
-//        cache_set("$component:$identifier", $configuration, 'cache_configuration');
-//      }
-//    }
-//  }
+  // Get static variable that we can access across this request.
+  $from_activestore = &drupal_static('configuration_from_activestore');
+  
+  if (file_exists("config://configuration.inc")) {
+    // Load the current configuration file on disk
+    include_once "config://configuration.inc";
+    if (function_exists('configuration_variables_default_values')) {
+      // Clear all caches and flush.
+      // NOt sure if I should empty the vars here
+
+      // Export just the field we're tracking.
+      module_load_include('inc', 'configuration', 'configuration.export');
+
+      // Export the field we just saved and evaluate the export to $fields
+      eval(array_pop(configuration_variables_configuration_export_render('configuration_variables', array($identifier))));
+
+      $variables_code = configuration_variables_default_values();
+      
+      // If the activestore doesn't exist it is most likely because this configuration
+      // only exists in code.
+      if (empty($variables)) {
+        configuration_set_status($component, $identifier, CONFIGURATION_TRACKED_DATASTORE_ONLY);
+      }
+
+      // If this was the previous configuration in activestore don't mark this as changed.
+      $config = configuration_get_configuration();
+      /**
+       * @todo This code is reused in all component files.
+       */
+      $return = '';
+      $component = 'configuration_variables';
+      $status = $config[$component][$identifier]['status'];
+      $md5_datastore = (is_array($variables_code) && array_key_exists($identifier, $variables_code)) ? md5(serialize($variables_code[$identifier])) : '';
+      $md5_activestore = md5(serialize($variables_code[$identifier]));
+      
+      // Configs in code are not the same as what was just saved in activestore.
+      if ($from_activestore == TRUE && $md5_datastore != $md5_activestore) {
+        $status = $status | CONFIGURATION_ACTIVESTORE_OVERRIDDEN;
+        configuration_set_status($component, $identifier, $status);
+      }
+      // Menu in the activestore is the same as what is in code.
+      if ($md5_activestore == $md5_datastore) {
+        $status = CONFIGURATION_IN_SYNC;
+        configuration_set_status($component, $identifier, $status);
+        configuration_set_hash($component, $identifier, $md5_activestore);
+      }
+      if ($md5_activestore != $md5_datastore) {
+        $status = $status | CONFIGURATION_DATASTORE_OVERRIDDEN;
+        configuration_set_status($component, $identifier, $status);
+      }
+      // When checking for new configurations, check to see if configurations are
+      // the same in datastore as last activestore. Remove the datastore overridden.
+      if ($md5_datastore == $config[$component][$identifier]['hash']) {
+        $status = $status & ~CONFIGURATION_DATASTORE_OVERRIDDEN;
+        configuration_set_status($component, $identifier, $status);
+      }
+
+      // Store the config array in cache for easy access
+      if ($status != CONFIGURATION_IN_SYNC) {
+        $configuration[$component][$identifier]['activestore'] = $variables_code[$identifier];
+        $configuration[$component][$identifier]['datastore'] = (is_array($variables_code) && array_key_exists($identifier, $variables_code)) ? $variables_code[$identifier] : '';
+        cache_set("$component:$identifier", $configuration, 'cache_configuration');
+      }
+    }
+  }
 }
 
 function configuration_hash_configuration_variables($identifier) {
