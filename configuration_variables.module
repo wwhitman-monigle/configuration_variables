@@ -7,7 +7,7 @@ function configuration_variables_configuration_api() {
   return array(
     'configuration_variables' => array(
       'name' => t('System Variables'),
-      'feature_source' => FALSE,
+      'feature_source' => TRUE,
       'default_hook' => 'configuration_variables_configuration_export_options',
       'default_file' => CONFIGURATION_DEFAULTS_CUSTOM,
       'default_filename' => 'configuration.variables',
