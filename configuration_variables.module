@@ -115,7 +115,6 @@ function configuration_check_configuration_variables($identifier) {
       if (empty($variables)) {
         configuration_set_status($component, $identifier, CONFIGURATION_TRACKED_DATASTORE_ONLY);
       }
-
       // If this was the previous configuration in activestore don't mark this as changed.
       $config = configuration_get_configuration();
       /**
@@ -127,6 +126,9 @@ function configuration_check_configuration_variables($identifier) {
       $md5_datastore = (is_array($variables_code) && array_key_exists($identifier, $variables_code)) ? md5(serialize($variables_code[$identifier])) : '';
       $md5_activestore = md5(serialize($variables_code[$identifier]));
       
+      
+      watchdog('configuration_variables', 'ACTIVESTORE '. $md5_activestore);
+      watchdog('configuration_variables', 'DATASTORE '. $md5_datastore);
       // Configs in code are not the same as what was just saved in activestore.
       if ($from_activestore == TRUE && $md5_datastore != $md5_activestore) {
         $status = $status | CONFIGURATION_ACTIVESTORE_OVERRIDDEN;
@@ -170,4 +172,31 @@ function configuration_hash_configuration_variables($identifier) {
   eval(array_pop(configuration_variables_configuration_export_render('configuration_variables', array($identifier))));
 
   return md5(serialize($variables[$identifier]));
+}
+
+function configuration_variable_set($name, $value, $old_value = NULL) {
+  
+  // Drop out for non-deltas and I am NOT type'ing this -- Woody
+  if ($value!=$old_value)
+  {
+    // Set a static variable that we can access across this request.
+
+    module_load_include('inc', 'configuration', "configuration.export");
+
+    // Set a static variable that we can access across this request.
+    $a = &drupal_static('configuration_from_activestore');
+    $a = true;
+
+    module_load_include('inc', 'configuration', "includes/configuration.variables");
+    configuration_check_configuration_variables($name);
+    configuration_write_export_file();
+
+    watchdog('configuration_variables', 'HOOK '. $name);
+
+    // @todo: Think about how I can handle this better.  Do I really want to
+    // rebuild cache everytime I make a change?
+    cache_clear_all('config_export', 'cache');
+    // Prime the cache.
+    $configs = configuration_get_configuration();
+  }
 }
