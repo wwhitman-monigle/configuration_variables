@@ -29,6 +29,9 @@ function configuration_variables_configuration_export_options() {
   return $options;
 }
 
+function configuration_configuration_variables_configuration_export_options() {
+  return configuration_variables_configuration_export_options();
+}
 /**
  * Implements hook_configuration_export().
  */
@@ -73,16 +76,18 @@ function configuration_variables_configuration_export_render($module_name, $data
   }
   $code[] = '  return $variables;';
   $code = implode("\n", $code);
-  return array('configuration_variables_default_values' => $code);
+  return array('configuration_configuration_variables_default_values' => $code);
 }
 
 /**
  * Implements hook_configuration_revert().
  */
-function configuration_variables_configuration_revert($identifiers, $module_name = 'configuration_variables') {
+function configuration_variables_configuration_revert($identifiers, $module_name = 'configuration') {
   $default_variables = configuration_get_default('configuration_variables', $module_name);
+
   if ($default_variables) {
     foreach ($default_variables as $name => $value) {
+      watchdog('configuration_variables', 'configuration_revert : '. $name . ' | ' . $value);
       if (in_array($name, $identifiers) || $identifiers[0] == '#import_all') {
         variable_set($name,$value);
       }
@@ -94,11 +99,14 @@ function configuration_variables_configuration_revert($identifiers, $module_name
 function configuration_check_configuration_variables($identifier) {
   // Get static variable that we can access across this request.
   $from_activestore = &drupal_static('configuration_from_activestore');
+  //watchdog('configuration_variables', 'from_activestore : '. $from_activestore);
   
-  if (file_exists("config://configuration.inc")) {
+  //watchdog('configuration_variables', 'file_exists : '. (int)file_exists("config://configuration.variables.inc"));
+  if (file_exists("config://configuration.variables.inc")) {
     // Load the current configuration file on disk
-    include_once "config://configuration.inc";
-    if (function_exists('configuration_variables_default_values')) {
+    include_once "config://configuration.variables.inc";
+    watchdog('configuration_variables', 'file_exists : '. (int)file_exists("config://configuration.variables.inc"));
+    if (function_exists('configuration_configuration_variables_default_values')) {
       // Clear all caches and flush.
       // NOt sure if I should empty the vars here
 
@@ -108,7 +116,7 @@ function configuration_check_configuration_variables($identifier) {
       // Export the field we just saved and evaluate the export to $fields
       eval(array_pop(configuration_variables_configuration_export_render('configuration_variables', array($identifier))));
 
-      $variables_code = configuration_variables_default_values();
+      $variables_code = configuration_configuration_variables_default_values();
       
       // If the activestore doesn't exist it is most likely because this configuration
       // only exists in code.
@@ -124,11 +132,11 @@ function configuration_check_configuration_variables($identifier) {
       $component = 'configuration_variables';
       $status = $config[$component][$identifier]['status'];
       $md5_datastore = (is_array($variables_code) && array_key_exists($identifier, $variables_code)) ? md5(serialize($variables_code[$identifier])) : '';
-      $md5_activestore = md5(serialize($variables_code[$identifier]));
-      
-      
       watchdog('configuration_variables', 'ACTIVESTORE '. $md5_activestore);
+      
+      $md5_activestore = md5(serialize($variables_code[$identifier]));
       watchdog('configuration_variables', 'DATASTORE '. $md5_datastore);
+      
       // Configs in code are not the same as what was just saved in activestore.
       if ($from_activestore == TRUE && $md5_datastore != $md5_activestore) {
         $status = $status | CONFIGURATION_ACTIVESTORE_OVERRIDDEN;
@@ -186,9 +194,9 @@ function configuration_variable_set($name, $value, $old_value = NULL) {
     // Set a static variable that we can access across this request.
     $a = &drupal_static('configuration_from_activestore');
     $a = true;
-
-    module_load_include('inc', 'configuration', "includes/configuration.variables");
+    
     configuration_check_configuration_variables($name);
+    
     configuration_write_export_file();
 
     watchdog('configuration_variables', 'HOOK '. $name);
