@@ -4,7 +4,7 @@
 define('CONFIGURATION_VARIABLES_WILDCARD','*');
 
 // Wildcard ONLY works on the end of the string.
-define('CONFIGURATION_VARIABLES_IGNORED', 'cron_*,configuration_*,install_*,file_*,update_*,admin_menu_*,drupal_*,remote_server,clean_url,comment_page,menu_expanded,node_submitted_page,path_alias_whitelist');
+define('CONFIGURATION_VARIABLES_IGNORED', 'cron_*,configuration_*,install_*,file_*,update_*,admin_menu_*,drupal_*,remote_server,clean_url,comment_page,menu_expanded,node_submitted_page,path_alias_whitelist,css_js_query_string');
 
 
 /**
@@ -202,10 +202,7 @@ function configuration_check_configuration_variables($identifier) {
       $component = 'configuration_variables';
       $status = $config[$component][$identifier]['status'];
       $md5_datastore = (is_array($variables_code) && array_key_exists($identifier, $variables_code)) ? md5(serialize($variables_code[$identifier])) : '';
-      //watchdog('configuration_variables', 'DATASTORE '. $md5_datastore);
-      
       $md5_activestore = md5(serialize($variables[$identifier]));
-      //watchdog('configuration_variables', 'ACTIVESTORE '. $md5_activestore);
       
       // Configs in code are not the same as what was just saved in activestore.
       if ($from_activestore == TRUE && $md5_datastore != $md5_activestore) {
