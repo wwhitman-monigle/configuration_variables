@@ -66,9 +66,9 @@ function configuration_variables_configuration_export_options() {
         if ($variable['name']===$ignore_type)
           $save_variable = false;
       }
-      if ($save_variable)
-        $options[$variable['name']] = $variable['name'];
     } // End Ignore Loop
+    if ($save_variable)
+      $options[$variable['name']] = $variable['name'];
   } // End Variable Loop
   return $options;
 }
