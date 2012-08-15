@@ -4,7 +4,7 @@
 define('CONFIGURATION_VARIABLES_WILDCARD','*');
 
 // Wildcard ONLY works on the end of the string.
-define('CONFIGURATION_VARIABLES_IGNORED', 'cron_*,configuration_*,install_*,file_*,update_*,admin_menu_*');
+define('CONFIGURATION_VARIABLES_IGNORED', 'cron_*,configuration_*,install_*,file_*,update_*,admin_menu_*,drupal_*,remote_server,clean_url,comment_page,menu_expanded,node_submitted_page,path_alias_whitelist');
 
 
 /**
@@ -73,9 +73,26 @@ function configuration_variables_configuration_export_options() {
   return $options;
 }
 
-//function configuration_configuration_variables_configuration_export_options() {
-//  return configuration_variables_configuration_export_options();
-//}
+/**
+ * implements configuration_variables_configuration_export_options
+ * its really a hack for external components to work with configuration 
+ * should return what we are tracking
+ * @return type 
+ */
+function configuration_configuration_variables_configuration_export_options() {
+  $variables_code = array();
+  if (file_exists("config://configuration.variables.inc")) {
+    // Load the current configuration file on disk
+    include_once "config://configuration.variables.inc";
+    //watchdog('configuration_variables', 'file_exists : '. (int)file_exists("config://configuration.variables.inc"));
+    if (function_exists('configuration_configuration_variables_default_values')) {
+      
+      $variables_code = configuration_configuration_variables_default_values();
+      //watchdog('configuration_variables', 'function_exists : '. serialize($variables_code));
+    }
+  }
+  return $variables_code;
+}
 /***
  * Implements hook_configuration_export().
  * @param array data
@@ -87,16 +104,13 @@ function configuration_variables_configuration_export($data, &$export, $module_n
   $pipe = array();
   $map = configuration_get_default_map('configuration_variables');
   foreach ($data as $name) {
-    $export['dependencies']['configuration_variables'] = 'configuration_variables';
-    // If another module provides this style, add it as a dependency
-    if (isset($map[$name]) && $map[$name] != $module_name) {
-      $module = $map[$name];
-      $export['dependencies'][$module] = $module;
-    }
-    // Otherwise, export the style
+    if ($name)
+    {
+      // Otherwise, export the style
       $value = variable_get($name);
       if ($value) {
-      $export['configuration']['configuration_variables'][$name] = $name;
+        $export['configuration']['configuration_variables'][$name] = $name;
+      }
     }
   }
   return $pipe;
@@ -131,19 +145,27 @@ function configuration_variables_configuration_export_render($module_name, $data
  * Implements hook_configuration_revert().
  */
 function configuration_variables_configuration_revert($identifiers, $module_name = 'configuration') {
+  //watchdog('configuration_variables', '$identifiers : '. serialize($identifiers));
+  
   $default_variables = configuration_get_default('configuration_variables', $module_name);
-
+  //watchdog('configuration_variables', '$default_variables : '. serialize($default_variables));
   if ($default_variables) {
     foreach ($default_variables as $name => $value) {
-      watchdog('configuration_variables', 'configuration_revert : '. $name . ' | ' . $value);
+      //watchdog('configuration_variables', 'configuration_revert : '. $name . ' | ' . $value);
       if (in_array($name, $identifiers) || $identifiers[0] == '#import_all') {
         variable_set($name,$value);
       }
     }
+    configuration_check_configurations(true);
+    return true;
   }
+  return false;
 }
 
-//There are no hooks available in Drupal 7 but in drupal  8 hook_variable_set will be used to trigger this function
+/**
+ * There are no hooks available in Drupal 7 but in drupal  8 hook_variable_set will be used to trigger this function
+ * @param string identifier
+ */
 function configuration_check_configuration_variables($identifier) {
   // Get static variable that we can access across this request.
   $from_activestore = &drupal_static('configuration_from_activestore');
@@ -153,7 +175,7 @@ function configuration_check_configuration_variables($identifier) {
   if (file_exists("config://configuration.variables.inc")) {
     // Load the current configuration file on disk
     include_once "config://configuration.variables.inc";
-    watchdog('configuration_variables', 'file_exists : '. (int)file_exists("config://configuration.variables.inc"));
+    //watchdog('configuration_variables', 'file_exists : '. (int)file_exists("config://configuration.variables.inc"));
     if (function_exists('configuration_configuration_variables_default_values')) {
       // Clear all caches and flush.
       // NOt sure if I should empty the vars here
@@ -180,10 +202,10 @@ function configuration_check_configuration_variables($identifier) {
       $component = 'configuration_variables';
       $status = $config[$component][$identifier]['status'];
       $md5_datastore = (is_array($variables_code) && array_key_exists($identifier, $variables_code)) ? md5(serialize($variables_code[$identifier])) : '';
-      watchdog('configuration_variables', 'DATASTORE '. $md5_datastore);
+      //watchdog('configuration_variables', 'DATASTORE '. $md5_datastore);
       
       $md5_activestore = md5(serialize($variables[$identifier]));
-      watchdog('configuration_variables', 'ACTIVESTORE '. $md5_activestore);
+      //watchdog('configuration_variables', 'ACTIVESTORE '. $md5_activestore);
       
       // Configs in code are not the same as what was just saved in activestore.
       if ($from_activestore == TRUE && $md5_datastore != $md5_activestore) {
@@ -217,6 +239,11 @@ function configuration_check_configuration_variables($identifier) {
   }
 }
 
+/**
+ * 
+ * @param string identifier
+ * @return string 
+ */
 function configuration_hash_configuration_variables($identifier) {
   // Export just the field we're tracking.
   
@@ -230,6 +257,14 @@ function configuration_hash_configuration_variables($identifier) {
   return md5(serialize($variables[$identifier]));
 }
 
+/**
+ * Implements hook_variable_set()
+ * Drupal 7 requires patch:
+ * http://drupal.org/files/issues/hook_variables_1035940.patch 
+ * @param string name
+ * @param string value
+ * @param string old_value 
+ */
 function configuration_variable_set($name, $value, $old_value = NULL) {
   
   // Drop out for non-deltas and I am NOT type'ing this -- Woody
@@ -247,7 +282,7 @@ function configuration_variable_set($name, $value, $old_value = NULL) {
     
     configuration_write_export_file();
 
-    watchdog('configuration_variables', 'HOOK '. $name);
+    //watchdog('configuration_variables', 'HOOK '. $name);
 
     // @todo: Think about how I can handle this better.  Do I really want to
     // rebuild cache everytime I make a change?
