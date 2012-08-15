@@ -1,5 +1,12 @@
 <?php
-//global $variables;
+
+// Asterisk for wildcard 
+define('CONFIGURATION_VARIABLES_WILDCARD','*');
+
+// Wildcard ONLY works on the end of the string.
+define('CONFIGURATION_VARIABLES_IGNORED', 'cron_*,configuration_*,install_*,file_*,update_*,admin_menu_*');
+
+
 /**
  * Implements hook_configuration_api().
  */
@@ -15,25 +22,66 @@ function configuration_variables_configuration_api() {
   );
 }
 
+/**
+ * Efficient method for accurately testing the start of a string
+ * @param string $str
+ * @param string $sub
+ * @return boolean 
+ */
+function configuration_variables_begins_with($str, $sub) {
+    return (strncmp($str, $sub, strlen($sub)) === 0);
+}
+
+/**
+ * Efficient method for accurately testing the end of a string
+ * @param string $str
+ * @param string $sub
+ * @return boolean 
+ */
+function configuration_variables_ends_with($str, $sub) {
+    if (strlen($sub) > strlen($sub)) 
+      return false;
+    return substr_compare($str, $sub, -strlen($sub)) === 0;
+}
 
 /**
  * Implements hook_configuration_export_options().
  */
 function configuration_variables_configuration_export_options() {
   $options = array();
+  $ignore_list = explode(',',CONFIGURATION_VARIABLES_IGNORED);
   $result = db_query("SELECT * FROM {variable} ORDER BY name", array(), array('fetch' => PDO::FETCH_ASSOC));
   foreach ($result as $variable) {
-    $options[$variable['name']] = $variable['name'];
-    //$options[$variable['name'].'value'] = $variable['value'];
-  }
+    $save_variable = true;
+    foreach ($ignore_list as $ignore_type) {
+      // IS Ignore Type a Wildcard? Does it end with a *
+      if (configuration_variables_ends_with($ignore_type, CONFIGURATION_VARIABLES_WILDCARD))
+      {
+        $wildcard_string = stristr($ignore_type, CONFIGURATION_VARIABLES_WILDCARD, $before_needle=true);
+        // Does it match the beginning, then drop it out
+        if (configuration_variables_begins_with($variable['name'],$wildcard_string)) 
+          $save_variable = false;
+      } else {
+        // Does it match exactly, then drop it out
+        if ($variable['name']===$ignore_type)
+          $save_variable = false;
+      }
+      if ($save_variable)
+        $options[$variable['name']] = $variable['name'];
+    } // End Ignore Loop
+  } // End Variable Loop
   return $options;
 }
 
-function configuration_configuration_variables_configuration_export_options() {
-  return configuration_variables_configuration_export_options();
-}
-/**
+//function configuration_configuration_variables_configuration_export_options() {
+//  return configuration_variables_configuration_export_options();
+//}
+/***
  * Implements hook_configuration_export().
+ * @param array data
+ * @param arry export
+ * @param string module_name
+ * @return array 
  */
 function configuration_variables_configuration_export($data, &$export, $module_name = 'configuration_variables') {
   $pipe = array();
@@ -76,7 +124,7 @@ function configuration_variables_configuration_export_render($module_name, $data
   }
   $code[] = '  return $variables;';
   $code = implode("\n", $code);
-  return array('configuration_configuration_variables_default_values' => $code);
+  return array('configuration_variables_default_values' => $code);
 }
 
 /**
@@ -132,10 +180,10 @@ function configuration_check_configuration_variables($identifier) {
       $component = 'configuration_variables';
       $status = $config[$component][$identifier]['status'];
       $md5_datastore = (is_array($variables_code) && array_key_exists($identifier, $variables_code)) ? md5(serialize($variables_code[$identifier])) : '';
-      watchdog('configuration_variables', 'ACTIVESTORE '. $md5_activestore);
-      
-      $md5_activestore = md5(serialize($variables_code[$identifier]));
       watchdog('configuration_variables', 'DATASTORE '. $md5_datastore);
+      
+      $md5_activestore = md5(serialize($variables[$identifier]));
+      watchdog('configuration_variables', 'ACTIVESTORE '. $md5_activestore);
       
       // Configs in code are not the same as what was just saved in activestore.
       if ($from_activestore == TRUE && $md5_datastore != $md5_activestore) {
@@ -161,7 +209,7 @@ function configuration_check_configuration_variables($identifier) {
 
       // Store the config array in cache for easy access
       if ($status != CONFIGURATION_IN_SYNC) {
-        $configuration[$component][$identifier]['activestore'] = $variables_code[$identifier];
+        $configuration[$component][$identifier]['activestore'] = $variables[$identifier];
         $configuration[$component][$identifier]['datastore'] = (is_array($variables_code) && array_key_exists($identifier, $variables_code)) ? $variables_code[$identifier] : '';
         cache_set("$component:$identifier", $configuration, 'cache_configuration');
       }
