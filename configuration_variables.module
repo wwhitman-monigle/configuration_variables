@@ -4,8 +4,7 @@
 define('CONFIGURATION_VARIABLES_WILDCARD','*');
 
 // Wildcard ONLY works on the end of the string.
-define('CONFIGURATION_VARIABLES_IGNORED', 'cron_*,configuration_*,install_*,file_*,update_*,admin_menu_*,drupal_*,remote_server,clean_url,comment_page,menu_expanded,node_submitted_page,path_alias_whitelist,css_js_query_string');
-
+define('CONFIGURATION_VARIABLES_IGNORED', 'cron_*,css_*,install_*,file_*,update_*,admin_menu_*,drupal_*,remote_server,clean_url,comment_page,menu_expanded,node_submitted_page,path_alias_whitelist,configuration_codecache,configuration_config_path,configuration_semaphore,configuration_ignored_orphans');
 
 /**
  * Implements hook_configuration_api().
@@ -152,7 +151,7 @@ function configuration_variables_configuration_revert($identifiers, $module_name
   if ($default_variables) {
     foreach ($default_variables as $name => $value) {
       //watchdog('configuration_variables', 'configuration_revert : '. $name . ' | ' . $value);
-      if (in_array($name, $identifiers) || $identifiers[0] == '#import_all') {
+      if (count($identifiers) && (in_array($name, $identifiers) || $identifiers[0] == '#import_all') ) {
         variable_set($name,$value);
       }
     }
@@ -266,6 +265,41 @@ function configuration_variable_set($name, $value, $old_value = NULL) {
   
   // Drop out for non-deltas and I am NOT type'ing this -- Woody
   if ($value!=$old_value)
+  {
+    // Set a static variable that we can access across this request.
+
+    module_load_include('inc', 'configuration', "configuration.export");
+
+    // Set a static variable that we can access across this request.
+    $a = &drupal_static('configuration_from_activestore');
+    $a = true;
+    
+    configuration_check_configuration_variables($name);
+    
+    configuration_write_export_file();
+
+    //watchdog('configuration_variables', 'HOOK '. $name);
+
+    // @todo: Think about how I can handle this better.  Do I really want to
+    // rebuild cache everytime I make a change?
+    cache_clear_all('config_export', 'cache');
+    // Prime the cache.
+    $configs = configuration_get_configuration();
+  }
+}
+
+/**
+ * Implements hook_variable_del()
+ * Drupal 7 requires patch:
+ * http://drupal.org/files/issues/hook_variables_1035940.patch 
+ * @param string name
+ * @param string value
+ * @param string old_value 
+ */
+function configuration_variable_del($name) {
+  
+  // Drop out for empty names -- Woody
+  if ($name)
   {
     // Set a static variable that we can access across this request.
 
