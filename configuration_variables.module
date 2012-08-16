@@ -199,7 +199,10 @@ function configuration_check_configuration_variables($identifier) {
        */
       $return = '';
       $component = 'configuration_variables';
-      $status = $config[$component][$identifier]['status'];
+      if (isset($config[$component][$identifier]['status']))
+        $status = $config[$component][$identifier]['status'];
+      else 
+        $status = '';
       $md5_datastore = (is_array($variables_code) && array_key_exists($identifier, $variables_code)) ? md5(serialize($variables_code[$identifier])) : '';
       $md5_activestore = md5(serialize($variables[$identifier]));
       
@@ -220,7 +223,7 @@ function configuration_check_configuration_variables($identifier) {
       }
       // When checking for new configurations, check to see if configurations are
       // the same in datastore as last activestore. Remove the datastore overridden.
-      if ($md5_datastore == $config[$component][$identifier]['hash']) {
+      if (isset($config[$component][$identifier]['hash']) && ($md5_datastore == $config[$component][$identifier]['hash'])) {
         $status = $status & ~CONFIGURATION_DATASTORE_OVERRIDDEN;
         configuration_set_status($component, $identifier, $status);
       }
